@@ -1,0 +1,74 @@
+Siebel Center room-type classifications — sources & notes
+=========================================================
+Compiled 2026-11-10. Types live in allrooms.txt (Conference | Class | Research
+| Admin | Unknown). This file records WHERE each designation came from and how
+much to trust it.
+
+PRIMARY SOURCES
+---------------
+[1] CS Faculty Access at Siebel Center (Engineering IT knowledge base)
+    https://answers.uillinois.edu/95448
+    The authoritative split. Groups rooms under explicit headings:
+      - "Classrooms and respective podiums":
+          0216, 1103, 1105, 1109, 1111, 1131, 1214, 1302, 1304, 1404
+      - "Conference Rooms and respective podiums":
+          2102, 2124, 2405, 2407, 3102, 3124, 3333, 3401, 3403,
+          4102, 4124, 4303, 4403, 4407
+      - "Service Rooms": 2203, 3203, 3323, 4203, 4323
+      - "Mail Room": 1332   "Lunch Room": 3407   "Kitchen by 2405": 2401
+    NOTE: page owner Engineering IT; created 2019-10-29, last updated
+    2022-10-03. Treat as possibly stale.
+
+[2] Technology Enhanced Classrooms — Siebel room list (Technology Services)
+    https://answers.illinois.edu/57175
+    Lists only 1302, 1304, 1404 as TS-supported AV classrooms; says other
+    classrooms are supported by Engineering IT. (None of these three are in
+    our room set, but it confirms the "classroom" character of the 1xxx wing.)
+
+[3] Engineering IT AV room directory (per-room pages)
+    Siebel 0218: https://engrit.illinois.edu/services/engrit-supported-av/directory-of-av-rooms/215
+        -> "Classroom - flexible seating", capacity 36.
+    Siebel 0220: https://engrit.illinois.edu/services/engrit-supported-av/directory-of-av-rooms/320
+        -> flexible-seating classroom, capacity 38, lecture capture + video conf.
+
+[4] CBTF (Computer-Based Testing Facility) — Siebel lab
+    https://cbtf.illinois.edu/students/labs/siebel
+    Room 0403 is the CBTF testing lab on the lower level. Classified as Class
+    (instructional/testing lab) rather than a meeting room.
+
+[5] Siebel School office locations
+    https://siebelschool.illinois.edu/about/office-locations
+    Admin office is room 2232 (not in our room set), so no room in allrooms.txt
+    is classified Admin.
+
+PER-ROOM NOTES / CONFIDENCE
+---------------------------
+CONFIRMED CONFERENCE (source [1]):
+  2102, 2124, 2405, 2407, 3102, 3124, 3401, 3403, 4102, 4124, 4403, 4407
+  2405 also: ~70 capacity, fixed two-seat desks, video conferencing, PC.
+
+CONFIRMED CLASS:
+  0216, 1103, 1105, 1109, 1111, 1131, 1214  (source [1])
+  0218 (cap 36), 0220 (cap 38)              (source [3])
+  0403 CBTF testing lab                      (source [4])
+
+LIKELY CLASS (not individually confirmed):
+  0222, 0224 — same basement classroom row as 0216/0218/0220; a CS course page
+  noted office hours temporarily moved to 0218/0220/0222. Left as Class.
+
+UNKNOWN (have bookable mailboxes but no authoritative type):
+  1218          — adjacent to classroom 1214; no source.
+  1300 Atrium   — building atrium / common & event space, not a meeting room.
+  2400D         — mailbox name says "lounge"; common space.
+  2103, 2111, 2244, 2303, 4240, 4325 — sit in the upper-floor (2-4) research /
+      faculty wings and are plausibly research or meeting rooms, but NO source
+      confirms a type, so kept Unknown rather than guess "Research".
+
+ADMIN / RESEARCH:
+  No room in allrooms.txt is confirmed Admin (admin office 2232 is out of set)
+  or confirmed Research. The upper-floor Unknowns are the Research candidates.
+
+HOW TO UPDATE
+-------------
+Edit the Type field (3rd column) in allrooms.txt. The web app and the
+findroom.py CLI both read types from that file directly.

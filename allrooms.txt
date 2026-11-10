@@ -1,0 +1,38 @@
+# Siebel Center rooms.  Format:  Name - address@domain - Type
+# Type is one of: Conference | Class | Research | Admin | Unknown
+# Classifications come from the sources listed in sources.txt (verify; some
+# designations are from a 2022 page and a few are best-guess, marked Unknown).
+# Lines starting with # are ignored.
+Siebel 0403 - sc0403@mx.uillinois.edu - Class
+Siebel 1214 - siebel-1214@mx.uillinois.edu - Class
+Siebel 1218 - siebel-1218@mx.uillinois.edu - Unknown
+Siebel 2103 - siebel-2103@mx.uillinois.edu - Unknown
+Siebel 2111 - siebel-2111@mx.uillinois.edu - Unknown
+Siebel 2400D - siebel-2400D-lounge@mx.uillinois.edu - Unknown
+Siebel 4240 - siebel-4240@mx.uillinois.edu - Unknown
+Siebel 4325 - siebel-4325@mx.uillinois.edu - Unknown
+Siebel Center 0216 - siebel-0216@mx.uillinois.edu - Class
+Siebel Center 0218 - siebel-0218@mx.uillinois.edu - Class
+Siebel Center 0220 - siebel-0220@mx.uillinois.edu - Class
+Siebel Center 0222 - siebel-0222@mx.uillinois.edu - Class
+Siebel Center 0224 - siebel-0224@mx.uillinois.edu - Class
+Siebel Center 1103 - siebel-1103@mx.uillinois.edu - Class
+Siebel Center 1105 - siebel-1105@mx.uillinois.edu - Class
+Siebel Center 1109 - siebel-1109@mx.uillinois.edu - Class
+Siebel Center 1111 - siebel-1111@mx.uillinois.edu - Class
+Siebel Center 1131 - siebel-1131@mx.uillinois.edu - Class
+Siebel Center 1300 Atrium - siebel-1300-atrium@mx.uillinois.edu - Unknown
+Siebel Center 2102 - siebel-2102@mx.uillinois.edu - Conference
+Siebel Center 2124 - siebel-2124@mx.uillinois.edu - Conference
+Siebel Center 2244 - siebel-2244@mx.uillinois.edu - Unknown
+Siebel Center 2303 - siebel-2303@mx.uillinois.edu - Unknown
+Siebel Center 2405 - siebel-2405@mx.uillinois.edu - Conference
+Siebel Center 2407 - siebel-2407@mx.uillinois.edu - Conference
+Siebel Center 3102 - siebel-3102@mx.uillinois.edu - Conference
+Siebel Center 3124 - siebel-3124@mx.uillinois.edu - Conference
+Siebel Center 3401 - siebel-3401@mx.uillinois.edu - Conference
+Siebel Center 3403 - siebel-3403@mx.uillinois.edu - Conference
+Siebel Center 4102 - siebel-4102@mx.uillinois.edu - Conference
+Siebel Center 4124 - siebel-4124@mx.uillinois.edu - Conference
+Siebel Center 4403 - siebel-4403@mx.uillinois.edu - Conference
+Siebel Center 4407 - siebel-4407@mx.uillinois.edu - Conference
