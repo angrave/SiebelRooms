@@ -13,11 +13,16 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 
 GRAPH = "https://graph.microsoft.com"
-PUBLIC_CLIENT = "d3590ed6-52b3-4102-aeff-aad2292ab01c"  # Microsoft Office public client
+# Microsoft Office public client — supports both ROPC and device-code flows and
+# has Calendars delegated permissions pre-consented. Override with AUTH_CLIENT_ID.
+PUBLIC_CLIENT = os.environ.get("AUTH_CLIENT_ID", "d3590ed6-52b3-4102-aeff-aad2292ab01c")
 SLOT_MIN = 30                       # availabilityView granularity (minutes)
 TIMEZONE = "America/Chicago"
 TZ_LABEL = "America/Chicago (Central)"
 HERE = os.path.dirname(os.path.abspath(__file__))
+TOKEN_CACHE = os.path.join(HERE, ".token.json")   # stores the refresh token
+# Delegated scopes for device-code / refresh. (ROPC uses .default instead.)
+DEVICE_SCOPES = "offline_access https://graph.microsoft.com/Calendars.Read"
 
 STATUS = {"0": "free", "1": "tentative", "2": "busy",
           "3": "out-of-office", "4": "elsewhere"}
@@ -42,7 +47,17 @@ def load_env(path=None):
 _ENV = load_env()
 USER = _ENV.get("USER") or os.environ.get("USER_UPN")
 PASS = _ENV.get("PASS") or os.environ.get("PASS")
-TENANT = USER.split("@")[-1] if USER and "@" in USER else None
+# Tenant for the login endpoint. From the account domain if known, else an env
+# override, else "organizations" (lets any work/school account resolve itself).
+TENANT = ((USER.split("@")[-1] if USER and "@" in USER else None)
+          or _ENV.get("TENANT") or os.environ.get("AUTH_TENANT") or "organizations")
+
+# Auth mode:
+#   password  -> ROPC, fully headless (needs USER+PASS in .env)
+#   device    -> device-code, one-time browser login, refresh token cached
+# Defaults to password when a PASS is present, otherwise device.
+AUTH_MODE = (_ENV.get("AUTH_MODE") or os.environ.get("AUTH_MODE")
+             or ("password" if PASS else "device")).lower()
 
 
 # ----------------------------------------------------------------------------- rooms
@@ -76,34 +91,126 @@ def _http(url, data=None, headers=None):
         raise RuntimeError("HTTP %d: %s" % (e.code, e.read().decode("utf-8", "replace")[:400]))
 
 
+def _token_url():
+    return "https://login.microsoftonline.com/%s/oauth2/v2.0/token" % TENANT
+
+
+def _post_form(fields):
+    return json.loads(_http(_token_url(),
+                            urllib.parse.urlencode(fields).encode(),
+                            {"Content-Type": "application/x-www-form-urlencoded"}))
+
+
+def _load_refresh():
+    try:
+        with open(TOKEN_CACHE) as f:
+            return json.load(f).get("refresh_token")
+    except Exception:
+        return None
+
+
+def _save_refresh(rt):
+    if not rt:
+        return
+    try:
+        with open(TOKEN_CACHE, "w") as f:
+            json.dump({"refresh_token": rt}, f)
+        os.chmod(TOKEN_CACHE, 0o600)
+    except Exception:
+        pass
+
+
+def device_login(print_fn=print):
+    """Interactive device-code login. Prints a URL + code, waits for sign-in,
+    caches the refresh token, and returns an access token."""
+    dc = json.loads(_http(
+        "https://login.microsoftonline.com/%s/oauth2/v2.0/devicecode" % TENANT,
+        urllib.parse.urlencode({"client_id": PUBLIC_CLIENT,
+                                "scope": DEVICE_SCOPES}).encode(),
+        {"Content-Type": "application/x-www-form-urlencoded"}))
+    print_fn("\nTo sign in, open:  %s" % dc["verification_uri"])
+    print_fn("Enter code:        %s\n" % dc["user_code"])
+    print_fn("Waiting for sign-in…")
+    interval = int(dc.get("interval", 5))
+    deadline = time.time() + int(dc.get("expires_in", 900))
+    while time.time() < deadline:
+        time.sleep(interval)
+        try:
+            tok = _post_form({
+                "client_id": PUBLIC_CLIENT,
+                "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+                "device_code": dc["device_code"],
+            })
+        except RuntimeError as e:
+            msg = str(e)
+            if "authorization_pending" in msg:
+                continue
+            if "slow_down" in msg:
+                interval += 5
+                continue
+            raise
+        _save_refresh(tok.get("refresh_token"))
+        print_fn("Signed in. Token cached in %s" % os.path.basename(TOKEN_CACHE))
+        return tok["access_token"], time.time() + int(tok.get("expires_in", 3600))
+    raise RuntimeError("Device-code login timed out; run `python3 siebel.py login` again.")
+
+
 class _Token:
-    """Cached ROPC access token, refreshed a minute before expiry."""
+    """Access-token cache. Acquires via (1) a cached refresh token,
+    (2) ROPC password, or (3) device-code login — in that order of preference
+    for the active AUTH_MODE. Refreshed a minute before expiry."""
     def __init__(self):
         self._lock = threading.Lock()
         self._value = None
         self._exp = 0
 
-    def get(self):
+    def _from_refresh(self, rt):
+        tok = _post_form({
+            "client_id": PUBLIC_CLIENT,
+            "grant_type": "refresh_token",
+            "refresh_token": rt,
+            "scope": DEVICE_SCOPES,
+        })
+        _save_refresh(tok.get("refresh_token", rt))
+        return tok["access_token"], time.time() + int(tok.get("expires_in", 3600))
+
+    def _from_password(self):
+        tok = _post_form({
+            "client_id": PUBLIC_CLIENT,
+            "scope": GRAPH + "/.default",
+            "grant_type": "password",
+            "username": USER,
+            "password": PASS,
+        })
+        return tok["access_token"], time.time() + int(tok.get("expires_in", 3600))
+
+    def get(self, allow_interactive=True):
         with self._lock:
             if self._value and time.time() < self._exp - 60:
                 return self._value
-            if not (USER and PASS and TENANT):
-                raise RuntimeError(
-                    "Missing credentials: create a .env with USER and PASS "
-                    "(see .env.example).")
-            form = urllib.parse.urlencode({
-                "client_id": PUBLIC_CLIENT,
-                "scope": GRAPH + "/.default",
-                "grant_type": "password",
-                "username": USER,
-                "password": PASS,
-            }).encode()
-            tok = json.loads(_http(
-                "https://login.microsoftonline.com/%s/oauth2/v2.0/token" % TENANT,
-                form, {"Content-Type": "application/x-www-form-urlencoded"}))
-            self._value = tok["access_token"]
-            self._exp = time.time() + int(tok.get("expires_in", 3600))
-            return self._value
+            # 1) ROPC when explicitly in password mode and creds present
+            if AUTH_MODE == "password" and USER and PASS:
+                self._value, self._exp = self._from_password()
+                return self._value
+            # 2) cached refresh token (device mode, headless after first login)
+            rt = _load_refresh()
+            if rt:
+                try:
+                    self._value, self._exp = self._from_refresh(rt)
+                    return self._value
+                except RuntimeError:
+                    pass  # expired/revoked -> fall through
+            # 3) ROPC fallback if a password is available
+            if USER and PASS:
+                self._value, self._exp = self._from_password()
+                return self._value
+            # 4) interactive device-code login
+            if allow_interactive:
+                self._value, self._exp = device_login()
+                return self._value
+            raise RuntimeError(
+                "Not authenticated. Run `python3 siebel.py login` for a one-time "
+                "device-code sign-in, or set USER/PASS in .env.")
 
 TOKEN = _Token()
 
@@ -204,3 +311,31 @@ def query(day, start, end, type_filter=None):
             "free": window_free(av, start, end), "busy": busy_blocks(av),
         })
     return out
+
+
+# ----------------------------------------------------------------------------- cli
+def _main(argv):
+    cmd = argv[1] if len(argv) > 1 else "login"
+    if cmd == "login":
+        device_login()                      # prompts, caches refresh token
+        print("Auth mode: %s   Tenant: %s" % (AUTH_MODE, TENANT))
+    elif cmd == "logout":
+        try:
+            os.remove(TOKEN_CACHE)
+            print("Removed cached token (%s)." % os.path.basename(TOKEN_CACHE))
+        except FileNotFoundError:
+            print("No cached token to remove.")
+    elif cmd == "whoami":
+        me = json.loads(_http(GRAPH + "/v1.0/me",
+                              None, {"Authorization": "Bearer " + TOKEN.get()}))
+        print("Signed in as: %s <%s>" % (me.get("displayName"),
+              me.get("userPrincipalName") or me.get("mail")))
+    else:
+        print("usage: python3 siebel.py [login|logout|whoami]")
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(_main(sys.argv))

@@ -17,22 +17,40 @@ standard library only.
 
 ## Setup
 
-1. **Credentials.** Copy the template and fill in an Exchange service-account
-   mailbox that can read room free/busy:
+No `pip install` needed (standard library only). Pick one of two auth modes.
 
-   ```bash
-   cp .env.example .env
-   # edit .env:  USER=<service-account email>   PASS=<password>
-   ```
+### Option A — Device-code login (recommended, no stored password)
 
-   `.env` is gitignored — do not commit it.
+Sign in once in a browser; a **refresh token** is cached in `.token.json`
+(gitignored, `chmod 600`) and reused headlessly afterward. Works with MFA.
 
-2. That's it. No `pip install` needed.
+```bash
+python3 siebel.py login      # prints a URL + code; sign in once
+python3 siebel.py whoami     # confirm who you're signed in as
+# python3 siebel.py logout   # forget the cached token
+```
 
-> **Auth note:** the tools use the OAuth2 ROPC (username/password) flow against
-> your tenant with the Microsoft Office public client ID, then call Graph's
-> `getSchedule`. The account must allow ROPC (no MFA / conditional-access block
-> on that sign-in).
+By default the login targets the `organizations` endpoint and the Microsoft
+Office public client. To pin a tenant, set `AUTH_TENANT` (e.g. `illinois.edu`)
+in your environment or add `TENANT=illinois.edu` to a `.env` file.
+
+### Option B — Service account (fully headless, no browser)
+
+Uses the OAuth2 **ROPC** (username/password) flow — good for an unattended
+service account, but it won't work if the account requires MFA / conditional
+access.
+
+```bash
+cp .env.example .env
+# edit .env:  USER=<service-account email>   PASS=<password>
+```
+
+`.env` is gitignored — never commit it. When `PASS` is present the tools use
+ROPC automatically; otherwise they use the cached device-code token.
+
+> **How it works:** both modes obtain a delegated Graph token (scope
+> `Calendars.Read`) and call `getSchedule`. No EWS. Override the auth mode with
+> `AUTH_MODE=device|password` and the client with `AUTH_CLIENT_ID` if needed.
 
 ---
 
@@ -104,7 +122,7 @@ and how much to trust each one.
 
 | File | Purpose |
 |---|---|
-| `siebel.py` | Shared core: auth, room loading, concurrent Graph free/busy. |
+| `siebel.py` | Shared core: auth, room loading, concurrent Graph free/busy. Also a CLI: `login` / `logout` / `whoami`. |
 | `findroom.py` | Command-line tool. |
 | `app.py` | Local web app. |
 | `allrooms.txt` | Room list + types (data). |
