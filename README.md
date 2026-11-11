@@ -15,6 +15,20 @@ standard library only.
 
 ---
 
+## Demo
+
+**CLI** — sign in once, then search (`siebel.py login` → `findroom.py 9 10`):
+
+![CLI demo: device-code login then finding free conference rooms](docs/cli.gif)
+
+**Web app** — filter by Type, free rooms highlighted (`python3 app.py`):
+
+![Web app demo: room table with Type column and free rooms highlighted](docs/web.gif)
+
+<sub>GIFs are illustrations rendered by [`docs/make_demo_gifs.py`](docs/make_demo_gifs.py) — no real booking data. Regenerate with `pip install Pillow && python3 docs/make_demo_gifs.py`.</sub>
+
+---
+
 ## Setup
 
 No `pip install` needed (standard library only). Pick one of two auth modes.
