@@ -78,11 +78,12 @@ ROPC automatically; otherwise they use the cached device-code token.
 
 ## CLI — `findroom.py`
 
-Defaults to **Conference** rooms, today, 9–10 AM, free rooms listed first.
-Times accept `HH`, `H:MM`, or `HH:MM` (24-hour, Central).
+Defaults to **Conference** rooms, today, **from the current time to one hour
+later** (Central), free rooms listed first. Times accept `HH`, `H:MM`, or
+`HH:MM` (24-hour, Central).
 
 ```bash
-python3 findroom.py                          # conf rooms free, today 9–10
+python3 findroom.py                          # conf rooms free now → +1h
 python3 findroom.py 14:00 15:00              # today 2–3 PM
 python3 findroom.py --date 2026-11-12 9 10   # specific date, 9–10 AM
 python3 findroom.py --type Class 13 14       # classrooms instead
@@ -165,6 +166,23 @@ parsing) with no network calls and no credentials required. See
 [`test.py`](test.py).
 
 ---
+
+## Accessibility
+
+The web app targets **WCAG 2.1 AA** and favors native HTML semantics over ARIA,
+adding ARIA only where dynamic updates require it:
+
+- All form controls have associated `<label for>`; the search bar is a
+  `role="search"` landmark and the results sit in a `<main>`.
+- Results, counts, and errors are announced via an `aria-live` status region
+  (errors use `role="alert"`); `#out` toggles `aria-busy` while loading.
+- The results table uses `<caption>`, `scope="col"` headers, and a
+  `scope="row"` room-name header per row.
+- Visible keyboard focus (`:focus-visible`) on every control; the date-nav
+  buttons are a labeled `role="group"` with descriptive `aria-label`s.
+
+Not yet done: a formal audit (axe/Lighthouse) and a manual screen-reader pass;
+treat AA as "designed for," not independently certified.
 
 ## License
 

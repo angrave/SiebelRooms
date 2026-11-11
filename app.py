@@ -41,12 +41,13 @@ INDEX_HTML = r"""<!doctype html>
   .nav{display:flex;gap:6px;align-items:center}
   .wrap{padding:16px 20px}
   .day{font-weight:600;font-size:16px;margin:0 0 4px}
-  .count{color:var(--mut);font-size:13px;margin-bottom:12px}
+  .count{color:var(--mut);font-size:13px;margin:0 0 12px}
   table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
   th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:top}
-  th{background:#f0f2f5;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}
-  tr.free td{background:var(--freebg)}
-  tr:last-child td{border-bottom:none}
+  thead th{background:#f0f2f5;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}
+  tbody th{font-weight:600;color:var(--ink)}
+  tr.free td,tr.free th{background:var(--freebg)}
+  tbody tr:last-child td,tbody tr:last-child th{border-bottom:none}
   .tag{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
   .tag.free{background:var(--freebg);color:var(--free)}
   .tag.busy{background:#fde8e9;color:var(--busy)}
@@ -57,32 +58,39 @@ INDEX_HTML = r"""<!doctype html>
   .none{font-size:12.5px;color:var(--free)}
   .err{background:#fde8e9;color:var(--busy);padding:10px 12px;border-radius:8px;margin:10px 0}
   .load{color:var(--mut)}
+  .chk{display:flex;align-items:center}
+  .chk label{display:flex;align-items:center;gap:6px;font-size:13px}
+  /* visible keyboard focus for all interactive controls */
+  a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #1d4ed8;outline-offset:2px}
+  /* visually hidden but available to screen readers */
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 </style></head>
 <body>
 <header><h1>Siebel Center — Room Scheduler</h1>
 <div class="tz">All times shown in __TZ__</div></header>
 
-<div class="bar">
-  <div><label>Date</label><input type="date" id="date"></div>
-  <div><label>Start</label><input type="time" id="start" value="09:00" step="1800"></div>
-  <div><label>End</label><input type="time" id="end" value="10:00" step="1800"></div>
-  <div><label>Type</label><select id="type">__TYPES__</select></div>
-  <div><label>&nbsp;</label><label style="font-size:13px;text-transform:none;letter-spacing:0"><input type="checkbox" id="freeonly"> free only</label></div>
+<div class="bar" role="search">
+  <div><label for="date">Date</label><input type="date" id="date"></div>
+  <div><label for="start">Start</label><input type="time" id="start" value="09:00" step="1800"></div>
+  <div><label for="end">End</label><input type="time" id="end" value="10:00" step="1800"></div>
+  <div><label for="type">Type</label><select id="type">__TYPES__</select></div>
+  <div class="chk"><label><input type="checkbox" id="freeonly"> Free only</label></div>
   <button class="go" id="go">Find</button>
-  <div class="nav" style="margin-left:auto">
-    <button data-j="-7">&laquo; Week</button>
-    <button data-j="-1">&lsaquo; Day</button>
+  <div class="nav" role="group" aria-label="Change date" style="margin-left:auto">
+    <button data-j="-7" aria-label="Previous week"><span aria-hidden="true">&laquo;</span> Week</button>
+    <button data-j="-1" aria-label="Previous day"><span aria-hidden="true">&lsaquo;</span> Day</button>
     <button data-j="0">Today</button>
-    <button data-j="1">Day &rsaquo;</button>
-    <button data-j="7">Week &raquo;</button>
+    <button data-j="1" aria-label="Next day">Day <span aria-hidden="true">&rsaquo;</span></button>
+    <button data-j="7" aria-label="Next week">Week <span aria-hidden="true">&raquo;</span></button>
   </div>
 </div>
 
-<div class="wrap">
-  <div class="day" id="dayLabel"></div>
-  <div class="count" id="count"></div>
-  <div id="out" class="load">Loading…</div>
-</div>
+<main class="wrap">
+  <h2 class="day" id="dayLabel"></h2>
+  <p class="count" id="count"></p>
+  <p id="status" class="sr-only" role="status" aria-live="polite"></p>
+  <div id="out" class="load" aria-busy="true">Loading…</div>
+</main>
 
 <script>
 const $ = s => document.querySelector(s);
@@ -106,38 +114,51 @@ async function load(){
   const dl=new Date(date+"T12:00:00");
   $("#dayLabel").textContent=dl.toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
   $("#count").textContent="";
-  $("#out").className="load"; $("#out").textContent="Loading…";
+  $("#status").textContent="Loading rooms…";
+  $("#out").className="load"; $("#out").setAttribute("aria-busy","true"); $("#out").textContent="Loading…";
   try{
     const r=await fetch(`/api/schedule?date=${date}&start=${start}&end=${end}&type=${encodeURIComponent(type)}`);
     const j=await r.json();
     if(!r.ok||j.error){throw new Error(j.error||("HTTP "+r.status));}
     render(j,start,end);
   }catch(e){
-    $("#out").className=""; $("#out").innerHTML=`<div class="err">${e.message}</div>`;
+    $("#out").className=""; $("#out").setAttribute("aria-busy","false");
+    $("#out").innerHTML=`<div class="err" role="alert">${e.message}</div>`;
+    $("#status").textContent="Error: "+e.message;
   }
 }
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 
 function render(j,start,end){
   let rooms=j.rooms;
   const free=rooms.filter(x=>x.free).length;
-  $("#count").textContent=`${free} of ${rooms.length} ${j.type==="All"?"":j.type+" "}rooms free for ${fmt12(start)}–${fmt12(end)} · ${j.timezone}`;
-  const out=$("#out"); out.className="";
+  const label=j.date;
+  const summary=`${free} of ${rooms.length} ${j.type==="All"?"":j.type+" "}rooms free for ${fmt12(start)}–${fmt12(end)} · ${j.timezone}`;
+  $("#count").textContent=summary;
+  const out=$("#out"); out.className=""; out.setAttribute("aria-busy","false");
   rooms.sort((a,b)=> (b.free-a.free) || a.name.localeCompare(b.name));
   if($("#freeonly").checked) rooms=rooms.filter(x=>x.free);
-  if(!rooms.length){out.innerHTML=`<div class="err">No matching rooms.</div>`;return;}
-  out.innerHTML=`<table><thead><tr>
-      <th>Status</th><th>Room</th><th>Type</th><th>Bookings (this day)</th><th>Address</th>
+  if(!rooms.length){
+    out.innerHTML=`<p class="none">No matching rooms.</p>`;
+    $("#status").textContent="No matching rooms for "+summary;
+    return;
+  }
+  out.innerHTML=`<table><caption class="sr-only">Rooms for ${esc(label)}, ${esc(fmt12(start))} to ${esc(fmt12(end))} (${esc(j.timezone)})</caption>
+    <thead><tr>
+      <th scope="col">Status</th><th scope="col">Room</th><th scope="col">Type</th><th scope="col">Bookings (this day)</th><th scope="col">Address</th>
     </tr></thead><tbody>`+rooms.map(x=>{
     const blocks=x.busy.length
-      ? x.busy.map(b=>`<div class="blk"><span class="s">${b.status}</span> ${fmt12(b.start)}–${fmt12(b.end)}</div>`).join("")
+      ? x.busy.map(b=>`<div class="blk"><span class="s">${esc(b.status)}</span> ${fmt12(b.start)}–${fmt12(b.end)}</div>`).join("")
       : `<span class="none">No bookings all day</span>`;
     return `<tr class="${x.free?"free":""}">
       <td><span class="tag ${x.free?"free":"busy"}">${x.free?"FREE":"busy"}</span></td>
-      <td>${x.name}</td>
-      <td><span class="ty">${x.type}</span></td>
+      <th scope="row">${esc(x.name)}</th>
+      <td><span class="ty">${esc(x.type)}</span></td>
       <td>${blocks}</td>
-      <td class="addr">${x.address}</td></tr>`;
+      <td class="addr">${esc(x.address)}</td></tr>`;
   }).join("")+`</tbody></table>`;
+  $("#status").textContent=summary;
 }
 load();
 </script>

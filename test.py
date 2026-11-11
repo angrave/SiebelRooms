@@ -111,6 +111,17 @@ os.unlink(tmp.name)
 section("no-credential safety")
 check("module imported without network", hasattr(siebel, "query"), True)
 
+# --- findroom CLI helpers ----------------------------------------------------
+section("findroom helpers")
+import findroom
+check("norm_time hour-only", findroom.norm_time("9"), "09:00")
+check("norm_time h:mm", findroom.norm_time("9:5"), "09:05")
+check("norm_time hh:mm", findroom.norm_time("14:30"), "14:30")
+check("plus_hour normal", findroom.plus_hour("09:00"), "10:00")
+check("plus_hour half", findroom.plus_hour("13:30"), "14:30")
+check("plus_hour clamps past midnight", findroom.plus_hour("23:40"), "23:59")
+check("now_ct returns a datetime", hasattr(findroom.now_ct(), "strftime"), True)
+
 # -----------------------------------------------------------------------------
 print()
 if _fail:
