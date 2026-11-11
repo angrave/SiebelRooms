@@ -13,9 +13,14 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 
 GRAPH = "https://graph.microsoft.com"
-# Microsoft Office public client — supports both ROPC and device-code flows and
-# has Calendars delegated permissions pre-consented. Override with AUTH_CLIENT_ID.
-PUBLIC_CLIENT = os.environ.get("AUTH_CLIENT_ID", "d3590ed6-52b3-4102-aeff-aad2292ab01c")
+# Two public clients, because first-party clients can't freely request Graph
+# delegated scopes in every flow:
+#   ROPC  -> Microsoft Office client (works with grant_type=password + .default)
+#   device-> Microsoft Graph Command Line Tools client (designed for device-code
+#            against Graph; avoids the AADSTS65002 pre-authorization block)
+ROPC_CLIENT = os.environ.get("AUTH_ROPC_CLIENT_ID", "d3590ed6-52b3-4102-aeff-aad2292ab01c")
+DEVICE_CLIENT = os.environ.get("AUTH_CLIENT_ID", "14d82eec-204b-4c2f-b7e8-296a70dab67e")
+PUBLIC_CLIENT = ROPC_CLIENT          # back-compat alias
 SLOT_MIN = 30                       # availabilityView granularity (minutes)
 TIMEZONE = "America/Chicago"
 TZ_LABEL = "America/Chicago (Central)"
@@ -125,7 +130,7 @@ def device_login(print_fn=print):
     caches the refresh token, and returns an access token."""
     dc = json.loads(_http(
         "https://login.microsoftonline.com/%s/oauth2/v2.0/devicecode" % TENANT,
-        urllib.parse.urlencode({"client_id": PUBLIC_CLIENT,
+        urllib.parse.urlencode({"client_id": DEVICE_CLIENT,
                                 "scope": DEVICE_SCOPES}).encode(),
         {"Content-Type": "application/x-www-form-urlencoded"}))
     print_fn("\nTo sign in, open:  %s" % dc["verification_uri"])
@@ -137,7 +142,7 @@ def device_login(print_fn=print):
         time.sleep(interval)
         try:
             tok = _post_form({
-                "client_id": PUBLIC_CLIENT,
+                "client_id": DEVICE_CLIENT,
                 "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
                 "device_code": dc["device_code"],
             })
@@ -166,7 +171,7 @@ class _Token:
 
     def _from_refresh(self, rt):
         tok = _post_form({
-            "client_id": PUBLIC_CLIENT,
+            "client_id": DEVICE_CLIENT,
             "grant_type": "refresh_token",
             "refresh_token": rt,
             "scope": DEVICE_SCOPES,
@@ -176,7 +181,7 @@ class _Token:
 
     def _from_password(self):
         tok = _post_form({
-            "client_id": PUBLIC_CLIENT,
+            "client_id": ROPC_CLIENT,
             "scope": GRAPH + "/.default",
             "grant_type": "password",
             "username": USER,

@@ -30,9 +30,17 @@ python3 siebel.py whoami     # confirm who you're signed in as
 # python3 siebel.py logout   # forget the cached token
 ```
 
-By default the login targets the `organizations` endpoint and the Microsoft
-Office public client. To pin a tenant, set `AUTH_TENANT` (e.g. `illinois.edu`)
-in your environment or add `TENANT=illinois.edu` to a `.env` file.
+By default the login targets the `organizations` endpoint using the **Microsoft
+Graph Command Line Tools** public client (`14d82eec…`), which is pre-authorized
+for Graph — you'll see a normal consent prompt for `Calendars.Read`. To pin a
+tenant, set `AUTH_TENANT` (e.g. `illinois.edu`) in your environment or add
+`TENANT=illinois.edu` to a `.env` file. Override the client with
+`AUTH_CLIENT_ID` if your tenant blocks it.
+
+> If device-code login shows **AADSTS65002** ("consent … must be configured via
+> preauthorization"), the client you used isn't allowed to request Graph tokens.
+> The default `14d82eec…` client avoids this; don't set `AUTH_CLIENT_ID` to the
+> Office client for device-code.
 
 ### Option B — Service account (fully headless, no browser)
 
